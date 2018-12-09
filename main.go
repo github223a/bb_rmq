@@ -1,6 +1,7 @@
 package rmq
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -115,7 +116,6 @@ func (rabbit *RabbitMQ) declareCunsumer(channel *amqp.Channel, settings ChannelS
 			// rmqProcessing(message.Body)
 		}
 	}()
-
 	if queueName == "" {
 		if settings.BindingKey != "" {
 			queueName = settings.BindingKey
@@ -155,6 +155,23 @@ func (rabbit *RabbitMQ) sendToQueue(body []byte, queueName string) error {
 		})
 	fmt.Printf("A message was sent to queue %v: %v", queueName, body)
 	return err
+}
+
+func (rabbit *RabbitMQ) sendToInternal(request Request) {
+	_requestByte, marshalErr := json.Marshal(request)
+	FailOnError(marshalErr, "Failed on marshal request message.")
+
+	err := rabbit.channels[NAMESPACE_INTERNAL].Publish(
+		"",                 // exchange
+		NAMESPACE_INTERNAL, // routing key
+		false,              // mandatory
+		false,              // immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        []byte(_requestByte),
+		})
+	FailOnError(err, "Failed to publish a message to internal service.")
+	log.Printf("%s Sent message to [* %s *]: Message %s", Header, NAMESPACE_INTERNAL, _requestByte)
 }
 
 func FailOnError(err error, msg string) {

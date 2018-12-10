@@ -23,7 +23,7 @@ type RabbitMQ struct {
 	channels   map[string]*amqp.Channel
 }
 
-func (rabbit *RabbitMQ) InitConnection(url string) {
+func (rabbit *RabbitMQ) InitConnection(url string) *RabbitMQ {
 	if url == "" {
 		panic("Cannot initialize connection to broker, bad url.")
 	}
@@ -33,6 +33,8 @@ func (rabbit *RabbitMQ) InitConnection(url string) {
 	if err != nil {
 		panic("Failed to connect to AMQP compatible broker at: " + url)
 	}
+
+	return rabbit
 }
 
 func (rabbit *RabbitMQ) InitChannels(channels map[string]ChannelSettings) {
@@ -161,17 +163,17 @@ func (rabbit *RabbitMQ) sendToInternal(request Request) {
 	_requestByte, marshalErr := json.Marshal(request)
 	FailOnError(marshalErr, "Failed on marshal request message.")
 
-	err := rabbit.channels[NAMESPACE_INTERNAL].Publish(
-		"",                 // exchange
-		NAMESPACE_INTERNAL, // routing key
-		false,              // mandatory
-		false,              // immediate
+	err := rabbit.channels[NamespaceInternal].Publish(
+		"",                // exchange
+		NamespaceInternal, // routing key
+		false,             // mandatory
+		false,             // immediate
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        []byte(_requestByte),
 		})
 	FailOnError(err, "Failed to publish a message to internal service.")
-	log.Printf("%s Sent message to [* %s *]: Message %s", Header, NAMESPACE_INTERNAL, _requestByte)
+	log.Printf("%s Sent message to [* %s *]: Message %s", Header, NamespaceInternal, _requestByte)
 }
 
 func FailOnError(err error, msg string) {

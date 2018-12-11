@@ -18,50 +18,52 @@ import (
 // 	Close()
 // }
 
-type RabbitMQ struct {
+var Rabbit rabbitMQ
+
+type rabbitMQ struct {
 	connection *amqp.Connection
 	channels   map[string]*amqp.Channel
 }
 
-func (rabbit *RabbitMQ) InitConnection(url string) *RabbitMQ {
+func (r *rabbitMQ) InitConnection(url string) *rabbitMQ {
 	if url == "" {
 		panic("Cannot initialize connection to broker, bad url.")
 	}
 
 	var err error
-	rabbit.connection, err = amqp.Dial(fmt.Sprintf("%s/", url))
+	r.connection, err = amqp.Dial(fmt.Sprintf("%s/", url))
 	if err != nil {
 		panic("Failed to connect to AMQP compatible broker at: " + url)
 	}
 
-	return rabbit
+	return r
 }
 
-func (rabbit *RabbitMQ) InitChannels(channels map[string]ChannelSettings) {
-	rabbit.channels = map[string]*amqp.Channel{}
+func (r *rabbitMQ) InitChannels(channels map[string]ChannelSettings) {
+	r.channels = map[string]*amqp.Channel{}
 	keys := GetKeys(channels)
 
 	for _, channelName := range keys {
-		channel, err := rabbit.connection.Channel()
+		channel, err := r.connection.Channel()
 		FailOnError(err, "Failed to open connection with channel")
 
-		rabbit.channels[channelName] = channel
+		r.channels[channelName] = channel
 		settings := channels[channelName]
 
-		rabbit.declareExchange(channel, settings)
-		rabbit.declareQueue(channel, settings)
+		r.declareExchange(channel, settings)
+		r.declareQueue(channel, settings)
 
 		if settings.BindingKey != "" {
-			rabbit.bindQueue(channel, settings)
+			r.bindQueue(channel, settings)
 		}
 
 		if settings.ConsumeActivate == true {
-			rabbit.declareCunsumer(channel, settings)
+			r.declareCunsumer(channel, settings)
 		}
 	}
 }
 
-func (rabbit *RabbitMQ) declareExchange(ch *amqp.Channel, settings ChannelSettings) {
+func (r *rabbitMQ) declareExchange(ch *amqp.Channel, settings ChannelSettings) {
 	err := ch.ExchangeDeclare(
 		settings.ExchangeName, // name
 		settings.ExchangeType, // type
@@ -74,7 +76,7 @@ func (rabbit *RabbitMQ) declareExchange(ch *amqp.Channel, settings ChannelSettin
 	FailOnError(err, "Failed to declare an exchange")
 }
 
-func (rabbit *RabbitMQ) declareQueue(ch *amqp.Channel, settings ChannelSettings) {
+func (r *rabbitMQ) declareQueue(ch *amqp.Channel, settings ChannelSettings) {
 	args := make(amqp.Table)
 	args["x-message-ttl"] = settings.QueueOptions.MessageTTL
 
@@ -89,7 +91,7 @@ func (rabbit *RabbitMQ) declareQueue(ch *amqp.Channel, settings ChannelSettings)
 	FailOnError(err, "Failed to declare a queue")
 }
 
-func (rabbit *RabbitMQ) bindQueue(ch *amqp.Channel, settings ChannelSettings) {
+func (r *rabbitMQ) bindQueue(ch *amqp.Channel, settings ChannelSettings) {
 	err := ch.QueueBind(
 		settings.QueueName,    // queue name
 		settings.BindingKey,   // routing key
@@ -99,7 +101,7 @@ func (rabbit *RabbitMQ) bindQueue(ch *amqp.Channel, settings ChannelSettings) {
 	FailOnError(err, "Failed to bind a queue")
 }
 
-func (rabbit *RabbitMQ) declareCunsumer(channel *amqp.Channel, settings ChannelSettings) {
+func (r *rabbitMQ) declareCunsumer(channel *amqp.Channel, settings ChannelSettings) {
 	queueName := settings.QueueName
 	msgs, err := channel.Consume(
 		queueName,                   // queue
@@ -128,11 +130,11 @@ func (rabbit *RabbitMQ) declareCunsumer(channel *amqp.Channel, settings ChannelS
 	log.Printf("%s Waiting for messages from %s channel. To exit press CTRL+C", Header, queueName)
 }
 
-func (rabbit *RabbitMQ) sendToQueue(body []byte, queueName string) error {
-	if rabbit.connection == nil {
+func (r *rabbitMQ) sendToQueue(body []byte, queueName string) error {
+	if r.connection == nil {
 		panic("Tried to send message before connection was initialized.")
 	}
-	channel, err := rabbit.connection.Channel() // Get a channel from the connection
+	channel, err := r.connection.Channel() // Get a channel from the connection
 	defer channel.Close()
 
 	// Declare a queue that will be created if not exists with some args
@@ -159,11 +161,11 @@ func (rabbit *RabbitMQ) sendToQueue(body []byte, queueName string) error {
 	return err
 }
 
-func (rabbit *RabbitMQ) sendToInternal(request Request) {
+func (r *rabbitMQ) sendToInternal(request Request) {
 	_requestByte, marshalErr := json.Marshal(request)
 	FailOnError(marshalErr, "Failed on marshal request message.")
 
-	err := rabbit.channels[NamespaceInternal].Publish(
+	err := r.channels[NamespaceInternal].Publish(
 		"",                // exchange
 		NamespaceInternal, // routing key
 		false,             // mandatory

@@ -3,12 +3,12 @@ package rmq
 import uuid "github.com/satori/go.uuid"
 
 type ChannelSettings struct {
-	ExchangeName    string         `json:"exchangeName,omitempty"`
-	ExchangeType    string         `json:"exchangeType,omitempty"`
-	QueueName       string         `json:"queueName,omitempty"`
-	QueueOptions    *QueueSettings `json:"queueOptions,omitempty"`
-	ConsumeActivate bool           `json:"consumeActivate,omitempty"`
-	BindingKey      string         `json:"bindingKey,omitempty"`
+	ExchangeName    string        `json:"exchangeName,omitempty"`
+	ExchangeType    string        `json:"exchangeType,omitempty"`
+	QueueName       string        `json:"queueName,omitempty"`
+	QueueOptions    QueueSettings `json:"queueOptions,omitempty"`
+	ConsumeActivate bool          `json:"consumeActivate,omitempty"`
+	BindingKey      string        `json:"bindingKey,omitempty"`
 }
 
 type QueueSettings struct {

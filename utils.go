@@ -6,13 +6,21 @@ import (
 	"sort"
 )
 
+// func sortByOrder(channels map[string]core.ChannelSettings) {
+
+// }
+
 func getKeys(channels map[string]core.ChannelSettings) []string {
 	var keys = make([]string, 0, len(channels))
 
 	for name := range channels {
 		keys = append(keys, name)
 	}
-	sort.Strings(keys)
+	sort.SliceStable(keys, func(i, j int) bool {
+		order1 := channels[keys[i]].Order
+		order2 := channels[keys[j]].Order
+		return order1 < order2
+	})
 	return keys
 }
 
